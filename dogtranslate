@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>🐶 无连续~~狗语翻译器</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;background:#fff8e1;padding:20px;margin:0}
+h1{text-align:center;color:#ff6f00;margin-bottom:25px}
+.wrapper{max-width:700px;margin:0 auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+textarea{width:100%;min-height:140px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:12px;font-size:16px;box-sizing:border-box}
+button{width:100%;margin-top:12px;padding:14px;font-size:18px;border:none;border-radius:6px;cursor:pointer;transition:.3s}
+.encodeBtn{background:#ff9800;color:#fff}
+.encodeBtn:hover{background:#e68900}
+.decodeBtn{background:#4caf50;color:#fff}
+.decodeBtn:hover{background:#43a047}
+.label{font-weight:bold;margin:18px 0 6px;color:#333}
+.note{font-size:13px;color:#666;margin-top:6px}
+</style>
+</head>
+<body>
+<h1>🐶 无连续 ~~ 狗语翻译器 🐾</h1>
+<div class="wrapper">
+    <div class="label">人类语言（明文）：</div>
+    <textarea id="humanText" placeholder="输入任意文字，如：你好，世界！Hello 2025 😊"></textarea>
+    <button class="encodeBtn" onclick="encodeToDog()">加密成狗语 ▶</button>
+
+    <div class="label">狗语（密文）：</div>
+    <textarea id="dogText" placeholder="狗语会出现在这里，可手动修改后再解密"></textarea>
+    <button class="decodeBtn" onclick="decodeToHuman()">◀ 解密为人类语言</button>
+
+    <div class="note">提示：不会出现连续两个“~”，支持全部 Unicode 字符。</div>
+</div>
+
+<script>
+/* 映射表 */
+const sym2num = {'嗷':0,'呜':1,'汪':2,'~':3};
+const num2sym = ['嗷','呜','汪','~'];
+
+/* 工具：UTF-8 字节 ↔ 字符串 */
+const strToBytes = (s)=>new TextEncoder().encode(s);
+const bytesToStr = (b)=>new TextDecoder().decode(b);
+
+/* 字节 → 5 位四进制串（高位补 0）*/
+function byteToBase4Str(b){
+    return b.toString(4).padStart(5,'0');   // 0-255 → 00000-33333
+}
+
+/* 5 位四进制串 → 字节 */
+function base4StrToByte(str){
+    return parseInt(str,4);
+}
+
+/* 把 5 位四进制串 → 3 个符号（每组 3 位，第 3 位一定不为 3，防止 ~~）*/
+function base4ToSymbols(str5){
+    // 取前 3 位映射符号
+    const g1 = str5.slice(0,3).split('').map(d=>num2sym[parseInt(d,10)]).join('');
+    // 后 2 位补 0 凑 3 位，第 3 位固定为 0（非 3）
+    const g2 = str5.slice(3,5)+'0';
+    const g2sym = g2.split('').map(d=>num2sym[parseInt(d,10)]).join('');
+    return g1+g2sym;
+}
+
+/* 符号串 → 5 位四进制串 */
+function symbolsToBase4(symStr){
+    // symStr 长度必为 6
+    const part1 = symStr.slice(0,3);
+    const part2 = symStr.slice(3,5);   // 第 6 位忽略
+    const digits = (part1+part2).split('').map(ch=>sym2num[ch]).join('');
+    return digits.padStart(5,'0');
+}
+
+/* 加密：字符串 → 狗语 */
+function encodeToDog(){
+    const ht = document.getElementById('humanText').value;
+    if(!ht){document.getElementById('dogText').value='';return;}
+    try{
+        const bytes = strToBytes(ht);
+        const dogArr = Array.from(bytes).map(b=>base4ToSymbols(byteToBase4Str(b)));
+        const dogText = dogArr.join('~呜嗷~');
+        document.getElementById('dogText').value = dogText;
+    }catch(e){
+        alert('加密失败：'+e.message);
+    }
+}
+
+/* 解密：狗语 → 字符串 */
+function decodeToHuman(){
+    const dt = document.getElementById('dogText').value.trim();
+    if(!dt){document.getElementById('humanText').value='';return;}
+    try{
+        const parts = dt.split('~呜嗷~');
+        const bytes = [];
+        for(let p of parts){
+            if(p.length!==6) throw new Error('每组狗语长度必须为 6');
+            const base4Str = symbolsToBase4(p);
+            bytes.push(base4StrToByte(base4Str));
+        }
+        document.getElementById('humanText').value = bytesToStr(new Uint8Array(bytes));
+    }catch(e){
+        alert('解密失败：'+e.message);
+    }
+}
+</script>
+</body>
+</html>
